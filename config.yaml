@@ -26,8 +26,12 @@ fastlane:
   timeout_seconds: 120
   
 contracts:
-  solver: "0xYOUR_SOLVER_CONTRACT_ADDRESS"
-  flash_loan: "0xYOUR_FLASH_LOAN_CONTRACT"
+  polygon_rpc_url: "https://polygon-rpc.fastlane.xyz/"
+  solver_contract_address: "0x4A394bD4Bc2f4309ac0b75c052b242ba3e0f32e0" # Atlas contract
+  fastlane_contract_address: "0xf31cf8740Dc4438Bb89a56Ee2234Ba9d5595c0E9" # AtlasVerification contract
+  pfl_dapp_address: "0x3e23e4282FcE0cF42DCd0E9bdf39056434E65C1F" # PFL-dApp contract
+  dapp_signer_address: "0x96D501A4C52669283980dc5648EEC6437e2E6346" # dAppSigner contract
+  flash_loan: "0x1B658c8023C67Bbc1d7D07c64Cf161c93ED571ba"
 
 tokens:
   native: 
