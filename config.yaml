@@ -1,0 +1,82 @@
+network:
+  name: "polygon"
+  chain_id: 137
+  block_time_ms: 2000
+  confirmations: 3
+  rpc:
+    primary: "https://polygon-mainnet.g.alchemy.com/v2/{apikey}"
+    fallback: 
+      - "https://polygon-rpc.com"
+      - "https://rpc-mainnet.maticvigil.com"
+  ws:
+    primary: "wss://polygon-mainnet.g.alchemy.com/v2/{apikey}"
+
+mev_configuration:
+  flashbots_relay: "https://relay.flashbots.net"
+  fastlane_relay: "https://relay.fastlane.tools"
+  max_priority_fee_per_gas: 2_000_000_000  # 2 Gwei
+
+fastlane:
+  contract: "0x847f82C7E749aBd4E184E3eF65d5bD47b6F49A2D"
+  relay_url: "https://relay.fastlane.tools"
+  max_delay_blocks: 5
+  min_priority_fee_gwei: 2
+  timeout_seconds: 120
+  max_bundle_size: 3
+  simulation_block_offset: 1
+
+contracts:
+  flash_loan: "0x69a263971db4eC7030420F2062cBB9709bd608d0"
+  arbitrage_executor: "0x69a263971db4eC7030420F2062cBB9709bd608d0"
+  solver: "0x69a263971db4eC7030420F2062cBB9709bd608d0"
+
+tokens:
+  native: 
+    symbol: "MATIC"
+    address: "0x0000000000000000000000000000000000001010"
+  wrapped_native:
+    symbol: "WMATIC"
+    address: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+  stablecoins:
+    usdc: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
+    usdt: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+
+dex_routers:
+  quickswap: 
+    address: "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
+    type: "v2"
+    default_fee: 3000  # Add default fee (0.3%)
+  sushiswap: 
+    address: "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+    type: "v2"
+    default_fee: 3000  # Add default fee (0.3%)
+  uniswap_v3: 
+    address: "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+    type: "v3"
+    default_fee: 3000  # Add default fee (0.3%)
+    fee_tiers: [500, 3000, 10000]  # Available fee tiers for V3
+
+fastlane:
+  contract: "0x847f82C7E749aBd4E184E3eF65d5bD47b6F49A2D"
+  relay_url: "https://relay.fastlane.tools"
+  bundle_signer: ${FASTLANE_BUNDLE_SIGNER}
+  max_delay_blocks: 2
+  min_priority_fee_gwei: 2
+  timeout_seconds: 120
+  max_bundle_size: 3
+  simulation_block_offset: 1
+
+# Bundle optimization parameters
+bundle_parameters:
+  max_gas_limit: 5000000
+  min_bribe_factor: 1.5
+  sandwich_deadline_seconds: 120
+  max_pending_bundles: 5
+
+arbitrage_parameters:
+  min_profit_usd: 50
+  min_profit_percentage: 0.5
+  max_gas_price_gwei: 100
+  simulation_depth: 3
+  max_slippage_bps: 50
+  block_delay: 2
