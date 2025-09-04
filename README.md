@@ -19,7 +19,7 @@ Advanced MEV (Miner Extractable Value) Arbitrage Bot for the Polygon Network, de
 
 ## Installation
 1. Clone the repository
-2. Copy `.env.example` to `.env`
+2. edit `.env` with your contract/wallet/api/rpc values
 3. Configure environment variables
 4. `cargo build --release`
 
@@ -37,7 +37,7 @@ cargo run --release
 - Implement proper key management
 
 ## Disclaimer
-Use at your own risk. Arbitrage involves financial risk.
+Use at your own risk. Arbitrage involves financial risk. 
 
 ## License
 MIT License
