@@ -1,255 +1,119 @@
 // src/fastlane_integration.rs
+use anyhow::{Result, bail};
 use ethers::{
-    abi::{Abi, Token, Tokenize, Function},
-    prelude::*,
-    types::{
-        Address, Bytes, H256, U256, U64,
-    },
+    providers::Middleware,
+    types::{Address, U256, U64, Bytes, TransactionRequest},
+    contract::abigen,
+    signers::LocalWallet,
 };
+use log::{info, warn, debug, error};
 use std::sync::Arc;
-use anyhow::{Result, anyhow};
-use crate::simulation_engine::ArbitrageOpportunity as SimArbitrageOpportunity;
 
-// ===== Contract Bindings via Abigen =====
-abigen!(
-    FlashLoanArbitrage,
-    "abis/FlashLoanArbitrage.json",
-    event_derives(serde::Serialize, serde::Deserialize)
-);
+use crate::ArbitrageOpportunity;
 
-abigen!(
-    FastLaneSender,
-    "abis/FastLaneSender.json",
-    event_derives(serde::Serialize, serde::Deserialize)
-);
+// Define the FastLane contract ABI
+abigen!(FastLaneContract, "abis/FastLane.json",);
 
-abigen!(
-    IUniswapV2Pair,
-    "abis/IUniswapV2Pair.json",
-    event_derives(serde::Serialize, serde::Deserialize)
-);
-
-// ===== Structs for ABI Encoding =====
-#[derive(Clone)]
-pub struct UserOp {
-    pub from: Address,
-    pub to: Address,
-    pub value: U256,
-    pub gas: U256,
-    pub max_fee_per_gas: U256,
-    pub nonce: U256,
-    pub deadline: U256,
-    pub dapp: Address,
-    pub control: Address,
-    pub call_config: u32,
-    pub session_key: Address,
-    pub data: Bytes,
-    pub signature: Bytes,
-}
-
-#[derive(Clone)]
-pub struct SolverOp {
-    pub from: Address,
-    pub to: Address,
-    pub value: U256,
-    pub gas: U256,
-    pub max_fee_per_gas: U256,
-    pub deadline: U256,
-    pub solver: Address,
-    pub control: Address,
-    pub user_op_hash: [u8; 32],
-    pub data: Bytes,
-    pub signature: Bytes,
-}
-
-#[derive(Clone)]
-pub struct DAppOp {
-    pub from: Address,
-    pub to: Address,
-    pub value: U256,
-    pub gas: U256,
-    pub max_fee_per_gas: U256,
-    pub deadline: U256,
-    pub dapp: Address,
-    pub control: Address,
-    pub data: Bytes,
-    pub signature: Bytes,
-}
-
-#[derive(Clone, Debug)]
-pub struct FastLaneBundle {
-    pub data: Bytes,
-    pub target_block: U64,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum BundleStatus {
-    Unknown,
-    Pending,
-    Included,
-    Replaced,
-}
-
-// ===== Tokenize Trait Implementations =====
-impl Tokenize for UserOp {
-    fn into_tokens(self) -> Vec<Token> {
-        vec![
-            Token::Address(self.from),
-            Token::Address(self.to),
-            Token::Uint(self.value),
-            Token::Uint(self.gas),
-            Token::Uint(self.max_fee_per_gas),
-            Token::Uint(self.nonce),
-            Token::Uint(self.deadline),
-            Token::Address(self.dapp),
-            Token::Address(self.control),
-            Token::Uint(self.call_config.into()),
-            Token::Address(self.session_key),
-            Token::Bytes(self.data.to_vec()),
-            Token::Bytes(self.signature.to_vec()),
-        ]
-    }
-}
-
-impl Tokenize for SolverOp {
-    fn into_tokens(self) -> Vec<Token> {
-        vec![
-            Token::Address(self.from),
-            Token::Address(self.to),
-            Token::Uint(self.value),
-            Token::Uint(self.gas),
-            Token::Uint(self.max_fee_per_gas),
-            Token::Uint(self.deadline),
-            Token::Address(self.solver),
-            Token::Address(self.control),
-            Token::FixedBytes(self.user_op_hash.to_vec()),
-            Token::Bytes(self.data.to_vec()),
-            Token::Bytes(self.signature.to_vec()),
-        ]
-    }
-}
-
-impl Tokenize for DAppOp {
-    fn into_tokens(self) -> Vec<Token> {
-        vec![
-            Token::Address(self.from),
-            Token::Address(self.to),
-            Token::Uint(self.value),
-            Token::Uint(self.gas),
-            Token::Uint(self.max_fee_per_gas),
-            Token::Uint(self.deadline),
-            Token::Address(self.dapp),
-            Token::Address(self.control),
-            Token::Bytes(self.data.to_vec()),
-            Token::Bytes(self.signature.to_vec()),
-        ]
-    }
-}
-
-// ===== FastLane Client =====
+// FastLane client for submitting bundles
 pub struct FastLaneClient {
-    provider: Arc<Provider<Ws>>,
+    provider: Arc<dyn Middleware>,
     wallet: LocalWallet,
-    fastlane_address: Address,
-    fastlane_sender_contract: Address,
-    solver_contract: Address,
-    max_delay_blocks: U256,
-    min_priority_fee: U256,
+    fastlane_contract: Address,
+    fastlane_sender: Address,
 }
 
 impl FastLaneClient {
     pub fn new(
-        provider: Arc<Provider<Ws>>,
+        provider: Arc<dyn Middleware>,
         wallet: LocalWallet,
-        fastlane_address: Address,
-        fastlane_sender_contract: Address,
-        solver_contract: Address,
-        max_delay_blocks: U256,
-        min_priority_fee: U256,
+        fastlane_contract: Address,
+        fastlane_sender: Address,
     ) -> Self {
         Self {
             provider,
             wallet,
-            fastlane_address,
-            fastlane_sender_contract,
-            solver_contract,
-            max_delay_blocks,
-            min_priority_fee,
+            fastlane_contract,
+            fastlane_sender,
         }
     }
 
-    fn load_abi(bytes: &[u8]) -> Result<Abi> {
-        let abi: Abi = serde_json::from_slice(bytes)?;
-        Ok(abi)
-    }
+    // Enable EOA for FastLane
+    pub async fn enable_eoa(&self) -> Result<()> {
+        let contract = FastLaneContract::new(self.fastlane_contract, Arc::clone(&self.provider));
+        
+        let tx = contract.enable_eoa()
+            .send()
+            .await?
+            .await?;
 
-    pub async fn create_fastlane_bundle(
-        &self,
-        opportunity: &SimArbitrageOpportunity,
-        target_block: U64,
-    ) -> Result<FastLaneBundle> {
-        // ABI encoding for the contract function call
-        let abi = Self::load_abi(include_bytes!("../abis/FlashLoanArbitrage.json"))?;
-        let function = abi.function("executeFlashLoanArbitrage")?
-            .to_owned();
-
-        // Convert the SimArbitrageOpportunity into an ABI-compatible tuple of tokens.
-        // The ABI-encoded function call will have a tuple as a single argument.
-        let tokens = vec![
-            Token::Tuple(vec![
-                Token::Address(opportunity.token0),
-                Token::Uint(opportunity.amount0),
-                Token::Array(opportunity.routers.iter().map(|&a| Token::Address(a)).collect()),
-            ])
-        ];
-
-        let calldata = function.encode_input(&tokens).map_err(|e| anyhow!("Failed to encode calldata: {}", e))?;
-
-        Ok(FastLaneBundle {
-            data: calldata.into(),
-            target_block,
-        })
-    }
-
-    pub async fn submit_raw_transaction(
-        &self,
-        bundle: &FastLaneBundle,
-        gas_price: U256,
-    ) -> Result<H256> {
-        let fastlane_sender_abi = Self::load_abi(include_bytes!("../abis/FastLaneSender.json"))?;
-        let fastlane_sender_contract = Contract::new(
-            self.fastlane_sender_contract,
-            fastlane_sender_abi,
-            self.provider.clone()
-        );
-
-        let tx = fastlane_sender_contract
-            .method::<_, H256>(
-                "sendRawTransaction",
-                (bundle.data.clone(), bundle.target_block.as_u64())
-            )?
-            .gas_price(gas_price)
-            .from(self.wallet.address());
-
-        let pending_tx = tx.send().await?;
-        let receipt = pending_tx.await?;
-
-        receipt.map_or(
-            Err(anyhow!("Transaction receipt not found")),
-            |r| Ok(r.transaction_hash)
-        )
-    }
-
-    pub fn validate_bundle_params(&self, target_block: U64, current_block: U64) -> Result<()> {
-        if target_block <= current_block {
-            return Err(anyhow!("Target block must be in the future"));
-        }
-        if target_block > current_block + 5 {
-            return Err(anyhow!("Target block too far in the future"));
-        }
+        info!("EOA enabled for FastLane: {:?}", tx);
         Ok(())
     }
-}
 
-// ===== Re-export generated structs for external use =====
-pub use FlashLoanArbitrage;
+    // Create and submit FastLane bundle
+    pub async fn create_fastlane_bundle(
+        &self,
+        opportunity: &ArbitrageOpportunity,
+        target_block: U64,
+    ) -> Result<Bytes> {
+        // Encode the arbitrage opportunity data
+        let opportunity_data = abi::encode(&[
+            abi::Token::Address(opportunity.token0),
+            abi::Token::Address(opportunity.token1),
+            abi::Token::Uint(opportunity.amount0),
+            abi::Token::Uint(opportunity.amount1),
+            abi::Token::Uint(U256::from(opportunity.fee.unwrap_or(3000))),
+            abi::Token::Array(opportunity.path.iter().map(|&addr| abi::Token::Address(addr)).collect()),
+            abi::Token::Array(opportunity.amounts.iter().map(|&amt| abi::Token::Uint(amt)).collect()),
+            abi::Token::Array(opportunity.routers.iter().map(|&addr| abi::Token::Address(addr)).collect()),
+        ]);
+
+        // Create the solver transaction (our arbitrage contract)
+        let solver_tx = TransactionRequest::new()
+            .to(opportunity.solver_contract.unwrap_or(Address::zero()))
+            .data(opportunity_data)
+            .gas(U256::from(5000000));
+
+        // Create the opportunity transaction (the transaction we're frontrunning)
+        let opportunity_tx = TransactionRequest::new()
+            .to(opportunity.target_contract)
+            .data(opportunity.calldata.clone())
+            .gas(U256::from(5000000));
+
+        // Encode both transactions into bundle data
+        let bundle_data = abi::encode(&[
+            abi::Token::Bytes(opportunity_tx.data.unwrap_or_default().to_vec()),
+            abi::Token::Bytes(solver_tx.data.unwrap_or_default().to_vec()),
+        ]);
+
+        // Submit to FastLane
+        let contract = FastLaneContract::new(self.fastlane_contract, Arc::clone(&self.provider));
+        
+        let bid_amount = opportunity.expected_profit.unwrap_or(U256::zero()) * 8 / 10; // 80% of expected profit
+        let min_bid = U256::from(1_000_000_000_000_000); // 0.001 MATIC minimum
+        let actual_bid = if bid_amount < min_bid { min_bid } else { bid_amount };
+
+        let tx = contract.submit_bundle(
+            Bytes::from(bundle_data),
+            target_block,
+            actual_bid
+        )
+        .value(actual_bid)
+        .send()
+        .await?
+        .await?;
+
+        info!("FastLane bundle submitted for block {} with bid {} wei", target_block, actual_bid);
+        
+        Ok(Bytes::from(bundle_data))
+    }
+
+    // Check bundle status
+    pub async fn check_bundle_status(&self, bundle_hash: Bytes) -> Result<bool> {
+        let contract = FastLaneContract::new(self.fastlane_contract, Arc::clone(&self.provider));
+        
+        let status = contract.get_bundle_status(bundle_hash).call().await?;
+        
+        Ok(status)
+    }
+}
