@@ -26,9 +26,9 @@ fastlane:
   simulation_block_offset: 1
 
 contracts:
-  flash_loan: "0x69a263971db4eC7030420F2062cBB9709bd608d0"
-  arbitrage_executor: "0x69a263971db4eC7030420F2062cBB9709bd608d0"
-  solver: "0x69a263971db4eC7030420F2062cBB9709bd608d0"
+  flash_loan: "0x1e4d8779A346545ac164447Bd23D687369a9cdeE"
+  arbitrage_executor: "0x1e4d8779A346545ac164447Bd23D687369a9cdeE"
+  solver: "0x1e4d8779A346545ac164447Bd23D687369a9cdeE"
 
 tokens:
   native: 
