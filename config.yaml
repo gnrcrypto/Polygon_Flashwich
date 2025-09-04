@@ -1,3 +1,5 @@
+# Comprehensive MEV Arbitrage Configuration for Polygon Network
+
 network:
   name: "polygon"
   chain_id: 137
@@ -12,23 +14,23 @@ network:
     primary: "wss://polygon-mainnet.g.alchemy.com/v2/{apikey}"
 
 mev_configuration:
+  max_priority_fee_per_gas: 2_000_000_000  # 2 Gwei
   flashbots_relay: "https://relay.flashbots.net"
   fastlane_relay: "https://relay.fastlane.tools"
-  max_priority_fee_per_gas: 2_000_000_000  # 2 Gwei
 
 fastlane:
-  contract: "0x847f82C7E749aBd4E184E3eF65d5bD47b6F49A2D"
+  contract: "0xf20034aee4ed36f6c3adff9481cb037a81302c4a"
   relay_url: "https://relay.fastlane.tools"
-  max_delay_blocks: 5
+  max_delay_blocks: 2
   min_priority_fee_gwei: 2
   timeout_seconds: 120
   max_bundle_size: 3
   simulation_block_offset: 1
 
 contracts:
-  flash_loan: "0x1e4d8779A346545ac164447Bd23D687369a9cdeE"
-  arbitrage_executor: "0x1e4d8779A346545ac164447Bd23D687369a9cdeE"
-  solver: "0x1e4d8779A346545ac164447Bd23D687369a9cdeE"
+  flash_loan: "0xf20034aee4ed36f6c3adff9481cb037a81302c4a"
+  arbitrage_executor: "0xf20034aee4ed36f6c3adff9481cb037a81302c4a"
+  solver: "0xf20034aee4ed36f6c3adff9481cb037a81302c4a"
 
 tokens:
   native: 
@@ -45,28 +47,17 @@ dex_routers:
   quickswap: 
     address: "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
     type: "v2"
-    default_fee: 3000  # Add default fee (0.3%)
+    default_fee: 3000
   sushiswap: 
     address: "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
     type: "v2"
-    default_fee: 3000  # Add default fee (0.3%)
+    default_fee: 3000
   uniswap_v3: 
     address: "0xE592427A0AEce92De3Edee1F18E0157C05861564"
     type: "v3"
-    default_fee: 3000  # Add default fee (0.3%)
-    fee_tiers: [500, 3000, 10000]  # Available fee tiers for V3
+    default_fee: 3000
+    fee_tiers: [500, 3000, 10000]
 
-fastlane:
-  contract: "0x847f82C7E749aBd4E184E3eF65d5bD47b6F49A2D"
-  relay_url: "https://relay.fastlane.tools"
-  bundle_signer: ${FASTLANE_BUNDLE_SIGNER}
-  max_delay_blocks: 2
-  min_priority_fee_gwei: 2
-  timeout_seconds: 120
-  max_bundle_size: 3
-  simulation_block_offset: 1
-
-# Bundle optimization parameters
 bundle_parameters:
   max_gas_limit: 5000000
   min_bribe_factor: 1.5
