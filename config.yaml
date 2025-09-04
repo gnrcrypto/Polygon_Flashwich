@@ -17,6 +17,8 @@ mev_configuration:
   max_priority_fee_per_gas: 2_000_000_000  # 2 Gwei
   flashbots_relay: "https://relay.flashbots.net"
   fastlane_relay: "https://relay.fastlane.tools"
+  fastlane_relat_backup: "https://polygon-rpc.fastlane.xyz"
+  merlin_relay: "http://bor.txrelay.marlin.org"
 
 fastlane:
   auction_contract: "0xCACe8D78269ba00f1C4D5Fc3B1228C7DF0a7C8BA"
