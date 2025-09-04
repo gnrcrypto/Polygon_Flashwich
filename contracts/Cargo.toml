@@ -1,0 +1,26 @@
+[package]
+name = "polygon-mev-bot-contracts"
+version = "0.2.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "Smart Contracts for Polygon MEV Arbitrage Bot"
+license = "MIT"
+
+[dependencies]
+ethers = { version = "2.0", features = ["ws", "rustls"] }
+ethers-contract = "2.0"
+ethers-core = "2.0"
+ethers-providers = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[build-dependencies]
+ethers-contract-abigen = "2.0"
+
+[lib]
+name = "polygon_mev_bot_contracts"
+path = "src/lib.rs"
+
+[[bin]]
+name = "generate-bindings"
+path = "src/generate.rs"
