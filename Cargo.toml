@@ -1,7 +1,7 @@
 [package]
 name = "polygon-mev-arbitrage-bot"
 version = "0.3.0"
-edition = "2025"
+edition = "2021"
 authors = ["MEV Research Team <mev-research@example.com>"]
 description = "Advanced MEV Arbitrage Bot for Polygon Network"
 license = "MIT"
@@ -10,12 +10,16 @@ license = "MIT"
 members = [".", "contracts"]
 
 [dependencies]
-# Ethereum Interaction
+# Ethereum Libraries
 ethers = { version = "2.0", features = ["abigen", "rustls"] }
 ethers-core = "2.0"
 ethers-providers = "2.0"
 ethers-contract = { version = "2.0", features = ["abigen"] }
 ethers-signers = "2.0"
+ethers-contract-derive = "2.0"
+log = "0.4"
+env_logger = "0.10"
+lazy_static = "1.5.0"
 
 # Async Runtime
 tokio = { version = "1.28", features = ["full"] }
@@ -25,6 +29,19 @@ futures = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 config = "0.13"
+anyhow = "1.0.99"
+dotenv = "0.15.0"
+
+[build-dependencies]
+ethers-contract-abigen = "2.0"
+
+[lib]
+name = "polygon_mev_bot"
+path = "src/lib.rs"
+
+[[bin]]
+name = "polygon-mev-bot"
+path = "src/main.rs"
 
 # Error Handling
 anyhow = "1.0"
@@ -35,8 +52,9 @@ log = "0.4"
 env_logger = "0.10"
 
 # Utilities
-dotenv = "0.15"
 hex = "0.4"
+dotenv = "0.15"
+config = "0.13"
 
 # EVM Simulation
 revm = "3.4"
@@ -47,14 +65,3 @@ bounded-vec-deque = "0.1"
 [dev-dependencies]
 mockall = "0.11"
 criterion = "0.4"
-
-[build-dependencies]
-ethers-contract-abigen = "2.0"
-
-[lib]
-name = "polygon_mev_bot"
-path = "src/lib.00"
-
-[[bin]]
-name = "polygon-mev-bot"
-path = "src/main.00"
