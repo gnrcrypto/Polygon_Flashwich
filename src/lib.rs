@@ -74,20 +74,20 @@ impl MevBot {
     ) -> Result<Self, Box<dyn Error>> {
         let provider = Provider::<Http>::try_from(rpc_url)?;
         let provider = Arc::new(provider);
-        
+
         let wallet = private_key.parse::<LocalWallet>()?;
         let wallet = wallet.with_chain_id(137u64); // Polygon Mainnet
-        
+
         let flash_loan_contract = FlashLoanArbitrage::new(flash_loan_address, provider.clone());
         let fast_lane_sender = FastLaneSender::new(fast_lane_address, provider.clone());
-        
+
         let dex_factories = vec![
             QUICKSWAP_FACTORY.parse::<Address>()?,
             SUSHISWAP_FACTORY.parse::<Address>()?,
         ];
 
         let last_block = provider.get_block_number().await?;
-        
+
         Ok(Self {
             provider,
             flash_loan_contract,
@@ -101,41 +101,41 @@ impl MevBot {
 
     pub async fn monitor_blocks(&mut self) -> Result<(), Box<dyn Error>> {
         let _filter = Filter::new().from_block(BlockNumber::Latest);
-        
+
         loop {
             let block_number = self.provider.get_block_number().await?;
-            
+
             if block_number > self.last_block {
                 // New block, update pairs and check for opportunities
                 self.update_token_pairs().await?;
                 self.check_opportunities().await?;
                 self.last_block = block_number;
             }
-            
+
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     }
 
     async fn check_opportunities(&self) -> Result<(), Box<dyn Error>> {
         let empty_vec: Vec<Address> = Vec::new();
-        
+
         for (&_token_a, pairs_a) in &self.token_pairs {
             for (&_token_b, pairs_b) in &self.token_pairs {
                 if _token_a == _token_b {
                     continue;
                 }
-                
+
                 if self.analyze_opportunity(_token_a, _token_b, pairs_a, pairs_b).await? {
                     let optimal_route = self.find_optimal_route(_token_a, _token_b).await?;
                     let amount = self.calculate_optimal_amount(&optimal_route).await?;
-                    
+
                     if amount > U256::zero() {
                         self.execute_arbitrage(optimal_route).await?;
                     }
                 }
             }
         }
-        
+
         Ok(())
     }
 
@@ -151,13 +151,13 @@ impl MevBot {
                 if pair_a == pair_b {
                     continue;
                 }
-                
+
                 let (reserve_a0, reserve_a1) = self.get_reserves(pair_a).await?;
                 let (reserve_b0, reserve_b1) = self.get_reserves(pair_b).await?;
-                
+
                 let price_a = reserve_a0.as_u128() as f64 / reserve_a1.as_u128() as f64;
                 let price_b = reserve_b0.as_u128() as f64 / reserve_b1.as_u128() as f64;
-                
+
                 if (price_a - price_b).abs() / price_a > 0.01 {
                     return Ok(true);
                 }
@@ -168,17 +168,17 @@ impl MevBot {
 
     async fn update_token_pairs(&mut self) -> Result<(), Box<dyn Error>> {
         self.token_pairs.clear();
-        
+
         for &factory in &self.dex_factories {
             let factory_contract = IUniswapV2Pair::new(factory, self.provider.clone());
             let pairs_length: U256 = factory_contract.get_reserves().call().await?.0.into();
-            
+
             for i in 0..pairs_length.as_u64() {
                 if let Ok(pair_address) = factory_contract.token_0().call().await {
                     let pair_contract = IUniswapV2Pair::new(pair_address, self.provider.clone());
                     let token0 = pair_contract.token_0().call().await?;
                     let token1 = pair_contract.token_1().call().await?;
-                    
+
                     self.token_pairs.entry(token0)
                         .or_insert_with(Vec::new)
                         .push(pair_address);
@@ -267,9 +267,9 @@ impl MevBot {
     ) -> Result<Vec<Address>, Box<dyn Error>> {
         let mut best_route = vec![];
         let mut best_profit = U256::zero();
-        
+
         let routes = self.get_all_routes(token_in, token_out)?;
-        
+
         for route in routes {
             let profit = self.simulate_trade(&route).await?;
             if profit > best_profit {
@@ -277,7 +277,7 @@ impl MevBot {
                 best_route = route;
             }
         }
-        
+
         Ok(best_route)
     }
 
@@ -295,7 +295,7 @@ impl MevBot {
         let mut routes = Vec::new();
         let pairs = self.token_pairs.get(&token_in)
             .ok_or("No pairs found for input token")?;
-            
+
         for &pair in pairs {
             let mut route = vec![token_in, pair];
             if pair == token_out {
@@ -309,19 +309,19 @@ impl MevBot {
                 }
             }
         }
-        
+
         Ok(routes)
     }
 
     async fn simulate_trade(&self, path: &[Address]) -> Result<U256, Box<dyn Error>> {
         let amount = U256::from(1_000_000_000_000_000_000u64); // 1 MATIC
         let mut current_amount = amount;
-        
+
         for i in 0..path.len() - 1 {
             let (reserve_in, reserve_out) = self.get_reserves(path[i]).await?;
             current_amount = (current_amount * reserve_out) / (reserve_in + current_amount);
         }
-        
+
         Ok(if current_amount > amount {
             current_amount - amount
         } else {
@@ -332,13 +332,13 @@ impl MevBot {
     async fn calculate_optimal_amount(&self, path: &[Address]) -> Result<U256, Box<dyn Error>> {
         let mut optimal_amount = U256::zero();
         let mut max_profit = U256::zero();
-        
+
         let amounts = vec![
             U256::from(1_000_000_000_000_000_000u64), // 1 MATIC
             U256::from(5_000_000_000_000_000_000u64), // 5 MATIC
             U256::from(10_000_000_000_000_000_000u64), // 10 MATIC
         ];
-        
+
         for &amount in &amounts {
             let profit = self.simulate_trade_with_amount(path, amount).await?;
             if profit > max_profit {
@@ -346,7 +346,7 @@ impl MevBot {
                 optimal_amount = amount;
             }
         }
-        
+
         Ok(optimal_amount)
     }
 
@@ -356,12 +356,12 @@ impl MevBot {
         amount: U256
     ) -> Result<U256, Box<dyn Error>> {
         let mut current_amount = amount;
-        
+
         for i in 0..path.len() - 1 {
             let (reserve_in, reserve_out) = self.get_reserves(path[i]).await?;
             current_amount = (current_amount * reserve_out) / (reserve_in + current_amount);
         }
-        
+
         Ok(if current_amount > amount {
             current_amount - amount
         } else {
@@ -393,25 +393,25 @@ pub struct Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_analyze_opportunity() {
         let provider = Provider::<Http>::try_from(
             "https://polygon-rpc.com"
         ).unwrap();
-        
+
         let wallet = "0000000000000000000000000000000000000000000000000000000000000001"
             .parse::<LocalWallet>()
             .unwrap()
             .with_chain_id(137u64);
-            
+
         let bot = MevBot::new(
             "https://polygon-rpc.com",
             "0000000000000000000000000000000000000000000000000000000000000001",
             Address::zero(),
             Address::zero(),
         ).await.unwrap();
-        
+
         // Test tokens (USDC and USDT on Polygon)
         let _token_a = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
             .parse::<Address>()
@@ -419,10 +419,10 @@ mod tests {
         let _token_b = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
             .parse::<Address>()
             .unwrap();
-            
+
         let pairs_a = vec![];
         let pairs_b = vec![];
-        
+
         let result = bot.analyze_opportunity(_token_a, _token_b, &pairs_a, &pairs_b).await.unwrap();
         assert!(result == true || result == false);
     }
