@@ -19,7 +19,7 @@ mev_configuration:
   fastlane_relay: "https://relay.fastlane.tools"
 
 fastlane:
-  contract: "0xf20034aee4ed36f6c3adff9481cb037a81302c4a"
+  contract: "0xA57Bd00134B2850B2a1c55860c9e9ea100fDd6CF"
   relay_url: "https://relay.fastlane.tools"
   max_delay_blocks: 2
   min_priority_fee_gwei: 2
@@ -28,9 +28,9 @@ fastlane:
   simulation_block_offset: 1
 
 contracts:
-  flash_loan: "0xf20034aee4ed36f6c3adff9481cb037a81302c4a"
-  arbitrage_executor: "0xf20034aee4ed36f6c3adff9481cb037a81302c4a"
-  solver: "0xf20034aee4ed36f6c3adff9481cb037a81302c4a"
+  flash_loan: "0xYourFlashLoanContractAddressHere"
+  arbitrage_executor: "0xYourArbitrageExecutorAddressHere"
+  solver: "0xYourSolverContractAddressHere"
 
 tokens:
   native: 
