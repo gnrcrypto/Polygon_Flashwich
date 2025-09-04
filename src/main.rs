@@ -239,6 +239,26 @@ async fn main() -> Result<()> {
             .expect("ARBITRAGE_EXECUTOR_CONTRACT must be set in .env")
     )?;
 
+    let solver_contract = ISolverContract::new(
+        config.solver_contract_address,
+        Arc::new(provider.clone()),
+    );
+    
+    let fastlane_contract = FastLaneContract::new(
+        config.fastlane_contract_address,
+        Arc::new(provider.clone()),
+    );
+    
+    let pfl_dapp_contract = PFLDAppContract::new(
+        config.pfl_dapp_address,
+        Arc::new(provider.clone()),
+    );
+    
+    let dapp_signer_contract = DAppSignerContract::new(
+        config.dapp_signer_address,
+        Arc::new(provider.clone()),
+    );
+
     // Wallet setup
     let private_key = std::env::var("WALLET_PRIVATE_KEY")
         .expect("WALLET_PRIVATE_KEY must be set in .env");
