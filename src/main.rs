@@ -124,19 +124,33 @@ impl FlashLoanArbitrage {
             .create_fastlane_bundle(opportunity, target_block)
             .await?;
 
-        // Correcting the method call to pass a vector of tokens and amounts
+        // Corrected method call - using the proper function signature from ABI
         let contract = FlashLoanContract::new(self.flash_loan_contract, Arc::clone(&self.provider));
-        let tx = contract.execute_arbitrage_internal(
-            vec![opportunity.token0],
-            vec![opportunity.amount0],
-            opportunity.routers.clone()
-        ).send().await?.await?
+        
+        // Create the ArbitrageOpportunity struct expected by the contract
+        let arbitrage_opportunity = FlashLoanContractArbitrageOpportunity {
+            token0: opportunity.token0,
+            token1: opportunity.token1,
+            amount0: opportunity.amount0,
+            amount1: opportunity.amount1,
+            fee: opportunity.fee.unwrap_or(3000), // Default fee if not specified
+            path: opportunity.path.clone(),
+            amounts: opportunity.amounts.clone(),
+            routers: opportunity.routers.clone(),
+        };
+
+        let tx = contract.execute_arbitrage_with_fast_lane(
+            arbitrage_opportunity,
+            target_block
+        )
+        .value(opportunity.expected_profit.unwrap_or(U256::zero())) // Add value for FastLane bid
+        .send()
+        .await?
+        .await?
         .ok_or_else(|| anyhow::anyhow!("No receipt returned"))?;
 
         Ok(tx)
     }
-
-
 
     // Mempool monitoring method
     async fn start_monitoring(&self) -> Result<()> {
