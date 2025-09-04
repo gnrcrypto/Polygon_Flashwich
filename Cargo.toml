@@ -1,8 +1,8 @@
 [package]
 name = "polygon-mev-arbitrage-bot"
-version = "0.2.0"
-edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
+version = "0.3.0"
+edition = "2025"
+authors = ["MEV Research Team <mev-research@example.com>"]
 description = "Advanced MEV Arbitrage Bot for Polygon Network"
 license = "MIT"
 
@@ -10,31 +10,12 @@ license = "MIT"
 members = [".", "contracts"]
 
 [dependencies]
-# Ethereum Libraries
+# Ethereum Interaction
 ethers = { version = "2.0", features = ["abigen", "rustls"] }
 ethers-core = "2.0"
 ethers-providers = "2.0"
 ethers-contract = { version = "2.0", features = ["abigen"] }
 ethers-signers = "2.0"
-ethers-contract-derive = "2.0"
-tokio = { version = "1.0", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-futures = "0.3"
-revm = "0.3"          # or latest
-anyhow = "1.0"
-log = "0.4"
-dotenv = "0.15"
-env_logger = "0.10"
-lazy_static = "1.5.0"
-
-[lib]
-name = "polygon_mev_bot"
-path = "src/lib.rs"
-
-[[bin]]
-name = "polygon-mev-bot"
-path = "src/main.rs"
 
 # Async Runtime
 tokio = { version = "1.28", features = ["full"] }
@@ -43,6 +24,7 @@ futures = "0.3"
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+config = "0.13"
 
 # Error Handling
 anyhow = "1.0"
@@ -53,9 +35,8 @@ log = "0.4"
 env_logger = "0.10"
 
 # Utilities
-hex = "0.4"
 dotenv = "0.15"
-config = "0.13"
+hex = "0.4"
 
 # EVM Simulation
 revm = "3.4"
@@ -69,3 +50,11 @@ criterion = "0.4"
 
 [build-dependencies]
 ethers-contract-abigen = "2.0"
+
+[lib]
+name = "polygon_mev_bot"
+path = "src/lib.00"
+
+[[bin]]
+name = "polygon-mev-bot"
+path = "src/main.00"
