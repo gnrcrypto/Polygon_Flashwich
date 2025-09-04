@@ -1,6 +1,6 @@
 // src/fastlane_integration.rs
 use ethers::{
-    abi::{Abi, Token, Tokenize},
+    abi::{Abi, Token, Tokenize, Function},
     prelude::*,
     types::{
         Address, Bytes, H256, U256, U64,
@@ -8,7 +8,7 @@ use ethers::{
 };
 use std::sync::Arc;
 use anyhow::{Result, anyhow};
-use crate::simulation_engine::ArbitrageOpportunity;
+use crate::simulation_engine::ArbitrageOpportunity as SimArbitrageOpportunity;
 
 // ===== Contract Bindings via Abigen =====
 abigen!(
@@ -185,19 +185,28 @@ impl FastLaneClient {
 
     pub async fn create_fastlane_bundle(
         &self,
-        opportunity: &ArbitrageOpportunity,
+        opportunity: &SimArbitrageOpportunity,
         target_block: U64,
     ) -> Result<FastLaneBundle> {
+        // ABI encoding for the contract function call
         let abi = Self::load_abi(include_bytes!("../abis/FlashLoanArbitrage.json"))?;
-        let contract = Contract::new(self.solver_contract, abi, self.provider.clone());
+        let function = abi.function("executeFlashLoanArbitrage")?
+            .to_owned();
 
-        let calldata = contract
-            .method::<_, Bytes>("executeFlashLoanArbitrage", (opportunity.clone(),))?
-            .calldata()
-            .ok_or(anyhow!("Failed to generate calldata"))?;
+        // Convert the SimArbitrageOpportunity into an ABI-compatible tuple of tokens.
+        // The ABI-encoded function call will have a tuple as a single argument.
+        let tokens = vec![
+            Token::Tuple(vec![
+                Token::Address(opportunity.token0),
+                Token::Uint(opportunity.amount0),
+                Token::Array(opportunity.routers.iter().map(|&a| Token::Address(a)).collect()),
+            ])
+        ];
+
+        let calldata = function.encode_input(&tokens).map_err(|e| anyhow!("Failed to encode calldata: {}", e))?;
 
         Ok(FastLaneBundle {
-            data: calldata,
+            data: calldata.into(),
             target_block,
         })
     }
@@ -244,4 +253,3 @@ impl FastLaneClient {
 
 // ===== Re-export generated structs for external use =====
 pub use FlashLoanArbitrage;
-
